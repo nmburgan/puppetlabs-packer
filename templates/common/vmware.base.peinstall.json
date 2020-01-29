@@ -1,0 +1,136 @@
+{
+  "variables": {
+    "template_name"                                : null,
+    "iso_url"                                      : null,
+    "iso_checksum"                                 : null,
+    "iso_checksum_type"                            : null,
+    "puppet_aio"                                   : null,
+
+    "floppy_dirs"                                  : null,
+    "floppy_files"                                 : null,
+    "boot_command"                                 : null,
+
+    "support_status"                               : "puppet_maintained",
+    "project_root"                                 : "../../../..",
+    "headless"                                     : "true",
+    "template_config"                              : "base",
+    "provisioner"                                  : "vmware",
+    "shutdown_command"                             : "/sbin/halt -h -p",
+    "disk_size"                                    : "81920",
+    "vmware_base_boot_wait"                        : "45s",
+    "vmware_base_required_modules"                 : "saz-ssh puppetlabs-stdlib",
+    "packer_output_dir"                            : "{{env `PACKER_VM_OUT_DIR`}}",
+    "vmware_base_vmx_data_memsize"                 : "8192",
+    "vmware_base_vmx_data_cpuid_coresPerSocket"    : "1",
+    "vmware_base_vmx_data_numvcpus"                : "4",
+    "vmware_base_vmx_ehci_present"                 : "FALSE",
+    "vmware_base_vm_usb_present"                   : "FALSE" ,
+    "vmware_base_vm_scsi0_present"                 : "TRUE",
+    "vmware_base_vm_smc_present"                   : "",
+    "vmware_base_vm_hpet0_present"                 : "",
+    "vmware_base_vm_ich7m_present"                 : "",
+    "vmware_base_vm_firmware"                      : "",
+    "vmware_base_vmx_keyboard_and_mouse_profile"   : "",
+    "vmware_base_vm_disk_adapter_type"             : "scsi",
+    "vmware_base_vm_vmx_hardware_version"          : "9",
+
+    "vmware_base_vmx_data_ethernet0_virtualDev"    : "vmxnet3",
+    "vmware_base_vmx_data_ethernet0_pciSlotNumber" : "33",
+    "inject_http_seed_in_boot_command"             : "false",
+    "ssh_username"                                 : "root",
+    "ssh_password"                                 : "puppet",
+    "vmware_base_provisioning_scripts"             : "../../../../scripts/bootstrap-aio.sh",
+
+    "tools_upload_flavor"                          : "linux"
+  },
+
+  "description"                                    : "Builds a Linux base template VM for use in VMWare",
+
+  "builders": [
+    {
+      "name"                                       : "{{user `template_name`}}-{{user `provisioner`}}-{{user `template_config`}}",
+      "type"                                       : "vmware-iso",
+      "iso_url"                                    : "{{user `iso_url`}}",
+      "iso_checksum"                               : "{{user `iso_checksum`}}",
+      "iso_checksum_type"                          : "{{user `iso_checksum_type`}}",
+      "output_directory"                           : "{{user `packer_output_dir`}}/output-{{build_name}}",
+
+      "headless"                                   : "{{user `headless`}}",
+      "ssh_username"                               : "{{user `ssh_username`}}",
+      "ssh_password"                               : "{{user `ssh_password`}}",
+      "ssh_port"                                   : 22,
+      "ssh_wait_timeout"                           : "10000s",
+      "ssh_pty"                                    : "true",
+
+      "shutdown_command"                           : "{{user `shutdown_command`}}",
+
+      "guest_os_type"                              : "{{user `template_os`}}",
+      "disk_size"                                  : "{{user `disk_size`}}",
+      "tools_upload_flavor"                        : "{{user `tools_upload_flavor`}}",
+      "floppy_dirs"                                : "{{user `floppy_dirs`}}",
+      "floppy_files"                               : "{{user `floppy_files`}}",
+      "boot_wait"                                  : "{{user `vmware_base_boot_wait`}}",
+      "boot_command"                               : "{{$flag:= user `inject_http_seed_in_boot_command`}}{{$bootCmd:= user `boot_command`}}{{if eq $flag `true`}}{{$seed:= printf \"%s:%d\" .HTTPIP .HTTPPort}}{{$seed | printf $bootCmd}}{{else}}{{$bootCmd}}{{end}}",
+      "http_directory"                             : "{{user `http_directory`}}",
+      "vmx_data"                                   : {
+        "memsize"                                  : "{{user `vmware_base_vmx_data_memsize`}}",
+        "cpuid.coresPerSocket"                     : "{{user `vmware_base_vmx_data_cpuid_coresPerSocket`}}",
+        "numvcpus"                                 : "{{user `vmware_base_vmx_data_numvcpus`}}",
+        "keyboardAndMouseProfile"                  : "{{user `vmware_base_vmx_keyboard_and_mouse_profile`}}",
+        "ethernet0.virtualDev"                     : "{{user `vmware_base_vmx_data_ethernet0_virtualDev`}}",
+        "ethernet0.pciSlotNumber"                  : "{{user `vmware_base_vmx_data_ethernet0_pciSlotNumber`}}",
+        "ehci.present"                             : "{{user `vmware_base_vmx_ehci_present`}}",
+        "firmware"                                 : "{{user `vmware_base_vm_firmware`}}",
+        "hpet0.present"                            : "{{user `vmware_base_vm_hpet0_present`}}",
+        "ich7m.present"                            : "{{user `vmware_base_vm_ich7m_present`}}",
+        "scsi0.present"                            : "{{user `vmware_base_vm_scsi0_present`}}",
+        "smc.present"                              : "{{user `vmware_base_vm_smc_present`}}",
+        "usb.present"                              : "{{user `vmware_base_vm_usb_present`}}"
+      },
+      "disk_adapter_type"                          : "{{user `vmware_base_vm_disk_adapter_type`}}",
+      "version"                                    : "{{user `vmware_base_vm_vmx_hardware_version`}}"
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type"                                       : "shell",
+      "execute_command"                            : "{{.Vars}} bash '{{.Path}}' {{user `vmware_base_required_modules`}}",
+      "environment_vars"                           : [
+        "PUPPET_AIO={{user `puppet_aio`}}",
+        "PC_REPO={{user `pc_repo`}}"
+      ],
+      "scripts"                                    : "{{user `vmware_base_provisioning_scripts`}}"
+    },
+
+    {
+      "type"                                       : "puppet-masterless",
+      "execute_command"                            : "{{.FacterVars}} PATH=$PATH:/opt/puppetlabs/bin puppet apply --verbose --detailed-exitcodes --modulepath='/tmp/packer-puppet-masterless/manifests/modules' {{.ManifestFile}}",
+      "facter"                                     : {
+        "provisioner"                              : "{{user `provisioner`}}"
+      },
+      "manifest_dir"                               : "{{user `project_root`}}/manifests",
+      "manifest_file"                              : "{{user `project_root`}}/manifests/base.pp"
+    },
+
+    {
+      "type"                                       : "shell",
+      "environment_vars"                           : [
+        "PUPPET_AIO={{user `puppet_aio`}}",
+        "PC_REPO= {{user `pc_repo` }}",
+        "PE_TARBALL_URL={{user `pe_tarball_url`}}",
+        "PLATFORM={{user `platform`}}",
+        "PE_VERSION={{user `pe_version`}}",
+        "BACKUP_DB_URL={{user `backup_db_url`}}",
+        "BACKUP_TAR={{user `backup_tar`}}"
+      ],
+      "scripts"                                    : [
+        "{{user `project_root`}}/scripts/cleanup-aio.sh",
+        "{{user `project_root`}}/scripts/pe_install.sh",
+        "{{user `project_root`}}/scripts/load_backup_db.sh",
+        "{{user `project_root`}}/scripts/cleanup-packer.sh"
+      ],
+      "valid_exit_codes"                          : [0,2]
+    }
+  ]
+}
